@@ -1,0 +1,39 @@
+---
+Name: credo-cms
+---
+# --- Tenant data isolation -------------------------------------------------
+# Apply the ORM-level tenant filter to every tenant-aware model.
+App\Models\TenantPage:
+  extensions:
+    - App\Extensions\TenantDataExtension
+App\Models\TenantService:
+  extensions:
+    - App\Extensions\TenantDataExtension
+App\Models\TenantPost:
+  extensions:
+    - App\Extensions\TenantDataExtension
+App\Models\TenantTestimonial:
+  extensions:
+    - App\Extensions\TenantDataExtension
+App\Models\TenantSetting:
+  extensions:
+    - App\Extensions\TenantDataExtension
+App\Models\TenantVideo:
+  extensions:
+    - App\Extensions\TenantDataExtension
+
+# --- Member <-> Tenant link & CMS branding --------------------------------
+SilverStripe\Security\Member:
+  extensions:
+    - App\Extensions\TenantMemberExtension
+
+SilverStripe\Admin\LeftAndMain:
+  extensions:
+    - App\Extensions\TenantCMSBrandingExtension
+
+# --- Rate-limit cache for the contact endpoint ----------------------------
+SilverStripe\Core\Injector\Injector:
+  Psr\SimpleCache\CacheInterface.tenantContactRateLimit:
+    factory: SilverStripe\Core\Cache\CacheFactory
+    constructor:
+      namespace: tenantContactRateLimit

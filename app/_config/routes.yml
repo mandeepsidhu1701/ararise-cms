@@ -1,0 +1,13 @@
+---
+Name: credo-api-routes
+After:
+  - '#rootroutes'
+  - '#coreroutes'
+---
+SilverStripe\Control\Director:
+  rules:
+    # Contact form (POST). Listed first so it is not swallowed by $Resource.
+    'api/v1/$Slug/contact': 'App\API\ContactController'
+    # Read endpoints: settings, pages, services, posts, testimonials.
+    'api/v1/$Slug/$Resource/$Item': 'App\API\TenantAPIController'
+    'api/v1/$Slug/$Resource': 'App\API\TenantAPIController'

@@ -1,0 +1,274 @@
+<?php
+
+namespace App\Tasks;
+
+use App\Models\Tenant;
+use App\Models\TenantPage;
+use App\Models\TenantService;
+use App\Models\TenantServiceFeature;
+use App\Models\TenantSetting;
+use App\Models\TenantVideo;
+use SilverStripe\Dev\BuildTask;
+use SilverStripe\Security\Group;
+use SilverStripe\Security\Member;
+
+/**
+ * Seeds the first tenant (Credo Migration) with settings and services.
+ *
+ * Run with:  vendor/bin/sake dev/tasks/seed-credo flush=1
+ * Idempotent — safe to run more than once.
+ */
+class SeedCredoTask extends BuildTask
+{
+    private static $segment = 'seed-credo';
+
+    protected $title = 'Seed: Credo Migration tenant';
+
+    protected $description = 'Creates the Credo Migration tenant, settings, services and a tenant-admin login.';
+
+    public function run($request)
+    {
+        $tenant = $this->seedTenant();
+        $this->seedSettings($tenant);
+        $this->seedPages($tenant);
+        $this->seedServices($tenant);
+        $this->seedVideos($tenant);
+        $this->seedAdminUser($tenant);
+
+        $this->out('');
+        $this->out('Done. Credo tenant API key: ' . $tenant->APIKey);
+        $this->out('Tenant admin login: manisha@credomigration.com / Credo#2026');
+    }
+
+    private function seedTenant(): Tenant
+    {
+        $tenant = Tenant::get()->filter('Slug', 'credo')->first();
+        if (!$tenant) {
+            $tenant = Tenant::create();
+            $tenant->Slug = 'credo';
+        }
+        $tenant->Name = 'Credo Migration Services Ltd';
+        $tenant->Domain = 'credomigration.co.nz';
+        $tenant->PrimaryColor = '#cc1f1f';
+        $tenant->IsActive = true;
+        $tenant->write();
+        $this->out('Tenant: ' . $tenant->Name . ' (#' . $tenant->ID . ')');
+        return $tenant;
+    }
+
+    private function seedSettings(Tenant $tenant): void
+    {
+        $setting = TenantSetting::get()->filter('TenantID', $tenant->ID)->first();
+        if (!$setting) {
+            $setting = TenantSetting::create();
+            $setting->TenantID = $tenant->ID;
+        }
+        $setting->BusinessName = 'Credo Migration Services Ltd';
+        $setting->Tagline = 'Your trusted partner for New Zealand & Australia immigration';
+        $setting->PhoneNZ = '+64 273 353 475';
+        $setting->PhoneAU = '+61 491 710 728';
+        $setting->Email = 'info@credomigration.com';
+        $setting->IAA_LicenseNumber = '201300026';
+        $setting->MARA_AgentNumber = '2318124';
+        // Analytics & tracking (sample values — replace with the client's real IDs)
+        $setting->GTMCode = 'GTM-XXXXXXX';
+        $setting->GA4Code = 'G-XXXXXXXXXX';
+        $setting->FacebookPixelCode = '000000000000000';
+        $setting->GoogleVerification = 'replace-with-search-console-token';
+        $setting->write();
+        $this->out('Settings written for ' . $setting->BusinessName);
+    }
+
+    private function seedPages(Tenant $tenant): void
+    {
+        $pages = [
+            [
+                'PageType'        => 'home',
+                'Title'           => 'Home',
+                'HeroTitle'       => 'Your Trusted Migration Partner for New Zealand & Australia',
+                'HeroSubtitle'    => 'Licensed immigration advisers helping individuals, families and '
+                    . 'businesses navigate visas with confidence.',
+                'HeroButtonText'  => 'Book a Free Consultation',
+                'HeroButtonURL'   => '/contact',
+                'MetaTitle'       => 'Credo Migration Services | NZ & Australia Immigration Advisers',
+                'MetaDescription' => 'Credo Migration Services Ltd — IAA-licensed and MARA-registered '
+                    . 'advisers for New Zealand and Australia visas.',
+                'Content'         => '<p>Credo Migration Services Ltd provides expert, ethical and '
+                    . 'transparent immigration advice. With an IAA-licensed adviser (201300026) and a '
+                    . 'MARA-registered agent (2318124), we cover the full range of New Zealand and '
+                    . 'Australian visa categories.</p>',
+            ],
+            [
+                'PageType'        => 'about',
+                'Title'           => 'About Us',
+                'HeroTitle'       => 'About Credo Migration',
+                'HeroSubtitle'    => 'Experienced, licensed and dedicated to your migration journey.',
+                'MetaTitle'       => 'About Us | Credo Migration Services',
+                'MetaDescription' => 'Learn about Credo Migration Services — our licensed advisers, '
+                    . 'values and commitment to honest immigration advice.',
+                'Content'         => '<p>Credo Migration Services Ltd was founded on the principle of '
+                    . 'credibility — giving clients honest, accurate advice they can trust. Our team '
+                    . 'holds an IAA licence (201300026) in New Zealand and MARA registration (2318124) '
+                    . 'in Australia, so we can advise on both countries under one roof.</p>'
+                    . '<p>From family reunification to skilled migration and business visas, we guide '
+                    . 'you through every step with clarity and care.</p>',
+            ],
+            [
+                'PageType'        => 'services',
+                'Title'           => 'Our Services',
+                'HeroTitle'       => 'Immigration Services',
+                'HeroSubtitle'    => 'Comprehensive visa solutions for New Zealand and Australia.',
+                'MetaTitle'       => 'Immigration Services | Credo Migration Services',
+                'MetaDescription' => 'Family, student, work, skilled migrant, business and investor '
+                    . 'visas, Section 61 requests, IPT appeals and more.',
+                'Content'         => '<p>We offer end-to-end support across all major visa categories. '
+                    . 'Whether you are joining family, studying, working, investing or appealing a '
+                    . 'decision, our advisers tailor a strategy to your situation.</p>',
+            ],
+            [
+                'PageType'        => 'testimonials',
+                'Title'           => 'Testimonials',
+                'HeroTitle'       => 'What Our Clients Say',
+                'HeroSubtitle'    => 'Real stories from people we have helped settle in NZ and Australia.',
+                'MetaTitle'       => 'Client Testimonials | Credo Migration Services',
+                'MetaDescription' => 'Read testimonials from Credo Migration Services clients across '
+                    . 'New Zealand and Australia.',
+                'Content'         => '<p>Our greatest reward is seeing clients achieve their migration '
+                    . 'goals. Here is what some of them have to say about working with Credo.</p>',
+            ],
+            [
+                'PageType'        => 'contact',
+                'Title'           => 'Contact Us',
+                'HeroTitle'       => 'Get in Touch',
+                'HeroSubtitle'    => 'Book a confidential consultation with a licensed adviser today.',
+                'HeroButtonText'  => 'Send a Message',
+                'HeroButtonURL'   => '#contact-form',
+                'MetaTitle'       => 'Contact | Credo Migration Services',
+                'MetaDescription' => 'Contact Credo Migration Services — phone NZ +64 273 353 475, '
+                    . 'AU +61 491 710 728, or email info@credomigration.com.',
+                'Content'         => '<p>Reach us in New Zealand on +64 273 353 475 or in Australia on '
+                    . '+61 491 710 728, or email <a href="mailto:info@credomigration.com">'
+                    . 'info@credomigration.com</a>. We look forward to helping you.</p>',
+            ],
+        ];
+
+        foreach ($pages as $data) {
+            $page = TenantPage::get()->filter([
+                'TenantID' => $tenant->ID,
+                'PageType' => $data['PageType'],
+            ])->first();
+            if (!$page) {
+                $page = TenantPage::create();
+                $page->TenantID = $tenant->ID;
+            }
+            $page->update($data);
+            $page->IsPublished = true;
+            $page->write();
+        }
+        $this->out(count($pages) . ' pages seeded.');
+    }
+
+    private function seedServices(Tenant $tenant): void
+    {
+        $services = [
+            ['Family Visa', 'Family'],
+            ['Student Visa', 'Study'],
+            ['Work Visa (AEWV, Essential Skills)', 'Work'],
+            ['Skilled Migrant Category (SMC)', 'Residence'],
+            ['Visitor Visa', 'Visit'],
+            ['Long Term Business Visa (LTBV)', 'Business'],
+            ['Investor & Entrepreneur Visa', 'Business'],
+            ['Section 61 Requests', 'Special'],
+            ['IPT Appeals', 'Appeals'],
+            ['Australia Working Holiday Visa 2026', 'Australia'],
+        ];
+
+        $order = 1;
+        foreach ($services as [$title, $category]) {
+            $service = TenantService::get()->filter([
+                'TenantID' => $tenant->ID,
+                'Title'    => $title,
+            ])->first();
+            if (!$service) {
+                $service = TenantService::create();
+                $service->TenantID = $tenant->ID;
+                $service->Title = $title;
+            }
+            $service->CategoryLabel = $category;
+            $service->DisplayOrder = $order++;
+            $service->IsActive = true;
+            if (!$service->ShortDescription) {
+                $service->ShortDescription = 'Expert assistance with your ' . $title . '.';
+            }
+            $service->write();
+        }
+        $this->out(count($services) . ' services seeded.');
+    }
+
+    private function seedVideos(Tenant $tenant): void
+    {
+        $videos = [
+            [
+                'Title'      => 'Welcome to Credo Migration',
+                'YouTubeURL' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                'Category'   => 'Introduction',
+            ],
+            [
+                'Title'      => 'Client Success Story — Skilled Migrant Visa',
+                'YouTubeURL' => 'https://youtu.be/dQw4w9WgXcQ',
+                'Category'   => 'Client Stories',
+            ],
+        ];
+
+        $order = 1;
+        foreach ($videos as $data) {
+            $video = TenantVideo::get()->filter([
+                'TenantID' => $tenant->ID,
+                'Title'    => $data['Title'],
+            ])->first();
+            if (!$video) {
+                $video = TenantVideo::create();
+                $video->TenantID = $tenant->ID;
+                $video->Title = $data['Title'];
+            }
+            $video->VideoType = 'youtube';
+            $video->YouTubeURL = $data['YouTubeURL'];
+            $video->Category = $data['Category'];
+            $video->DisplayOrder = $order++;
+            $video->IsActive = true;
+            $video->write(); // onBeforeWrite extracts YouTubeID
+        }
+        $this->out(count($videos) . ' videos seeded.');
+    }
+
+    private function seedAdminUser(Tenant $tenant): void
+    {
+        $group = Group::get()->filter('Code', 'tenant-admin')->first();
+        if (!$group) {
+            $this->out('WARNING: tenant-admin group missing — run dev/build first.');
+            return;
+        }
+
+        $member = Member::get()->filter('Email', 'manisha@credomigration.com')->first();
+        if (!$member) {
+            $member = Member::create();
+            $member->Email = 'manisha@credomigration.com';
+            $member->FirstName = 'Manisha';
+            $member->Surname = 'Verma';
+            $member->changePassword('Credo#2026');
+        }
+        $member->TenantID = $tenant->ID;
+        $member->write();
+        $member->Groups()->add($group);
+        $this->out('Tenant admin user ready: ' . $member->Email);
+    }
+
+    private function out(string $line): void
+    {
+        if (\SilverStripe\Control\Director::is_cli()) {
+            echo $line . "\n";
+        } else {
+            echo '<p>' . htmlspecialchars($line) . '</p>';
+        }
+    }
+}
